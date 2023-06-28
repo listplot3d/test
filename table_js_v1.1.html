@@ -1,0 +1,372 @@
+<html lang="zh">
+<!--加了下面这一行，手机浏览器上就不会双击放大，反应就灵敏多了-->
+<meta name="viewport" content="user-scalable=0">
+<head>
+	<meta charset="UTF-8">
+	<title>优秀传统文化《跑胡子桌游》之守醒神器</title>
+
+	<style>
+		td {
+			color: white;
+			background-color: black;
+		}
+
+		button {
+			height: 16%;
+			width: 20%;
+			margin: 1%;
+			font-size: 300%;
+
+		}
+		span {
+			font-size: 250%;
+			float: left;
+		}
+
+
+		td.yellow {
+			color: black;
+			background: #faad48;
+			font-size: 250%;
+			float-wrap: wrap;
+			//float: right;
+		}
+		td.green {
+			color: black;
+			background: #62d29a;
+			font-size: 250%;
+
+		}
+		td.rotated_black {
+			color: white;
+			background-color: black;
+			transform: rotate(180deg);
+			font-size: 200%;
+		}
+		td.rotated_yellow {
+			color: black;
+			transform: rotate(180deg);
+			background: #faad48;
+			font-size: 400%;
+		}
+		td.rotated_green {
+			color: black;
+			transform: rotate(180deg);
+			background: #62d29a;
+			font-size: 400%;
+		}
+		td.rotated_grey {
+			color: black;
+			transform: rotate(180deg);
+			background: #999999;
+			font-size: 400%;
+			font-weight: bold;
+		}
+
+		button.blue {
+			background: cornflowerblue;
+			color: white;
+		}
+		button.green {
+			background: darkseagreen;
+			font-weight: bold;
+			color: white;
+		}
+		button.red {
+			background: coral;
+			color: white;
+		}
+		button.grey {
+			background: dimgrey;
+			color: white;
+		}
+
+		div.num_size3{
+			font-size: 800%;
+		}
+		div.rotated_size3{
+			font-size: 600%;
+		}
+		div.rotated_size4{
+			font-size: 800%;
+		}
+
+		div.calcScreen {
+			width: 82%;
+			height: 17%;
+			background-color: #aaa;
+			text-align: right;
+			padding-right: 0.5em;
+			color: black;
+			font-weight: bold;
+			font-size: 400%;
+			margin: 0.1em ;
+		}
+
+	</style>
+
+	<script src="./jquery-3.7.0.min.js"></script>
+	<script src="./js-cookie_3.0.5.min.js"></script>
+	<script>
+
+
+
+		var currentCalcEntry = '0';
+		var workingChannel = '0';
+		const legalNumLen =3;
+		function loadCookies(){
+			var cellVal;
+			for (let i = 1; i < 5; i++) {
+				 cellVal = Cookies.get('cellVal'+i);
+				if (!isNaN(cellVal) ) {
+					updateChannel(i,cellVal);
+				}
+			}
+		}
+
+		$(document).ready(function() {
+			resetNumsInCells(); //初始化所有数字,去掉此行可以看所有布局的编号对应关系
+			resetCellHighlight();
+			loadCookies();
+
+			// =============== 左下角的任一格子被点击时，===============
+			$("td[id^='tIn']").on('click', function(evt) {
+				//1.记录操作的通道
+				workingChannel = $(this).attr('id').toString().slice(-1);
+				updateCellHighlight();
+				//2.将通道的当前数字加载到计算器
+				var currentNum = $(this).find("div").html();
+				if (currentNum==='') {
+					$(this).find("div").html('0');
+					currentCalcEntry='0';
+				} else {
+					currentCalcEntry = currentNum;
+				}
+
+				updateScreen(currentCalcEntry);
+			});
+
+
+			//===============计算器被按键时，执行计算功能==================
+			$("button").on('click', function(evt) {
+				var btnPressed = $(this).html();
+
+				//------------validate input-------------
+				if (currentCalcEntry.length>legalNumLen*2+1 && btnPressed !== "←") {
+					setNumChkColor(false);
+					return;
+				} else {
+					setNumChkColor(true);
+				}
+
+				//-------------calculator main -----------
+				if (isNumber(btnPressed) ) {
+					if (currentCalcEntry === '0' && btnPressed !== '0') {
+						currentCalcEntry = btnPressed;
+					} else {
+						currentCalcEntry = currentCalcEntry + btnPressed;
+					}
+				} else if (isOperator(btnPressed)) {
+					if (btnPressed=== "x") {
+						btnPressed = "*";
+					}
+
+					var lastChar = currentCalcEntry.toString().slice(-1);
+					if (isOperator(lastChar)) {
+						currentCalcEntry = currentCalcEntry.replace(/.$/,btnPressed);
+					}else {
+						currentCalcEntry = currentCalcEntry + btnPressed;
+					}
+				} else if (btnPressed === '=') {
+					var result = eval(currentCalcEntry);
+					//------------validate input-------------
+					if (result.toString().length>legalNumLen) {
+						setNumChkColor(false);
+						return;
+					} else {
+						setNumChkColor(true);
+					}
+
+					currentCalcEntry = result
+					updateChannel(workingChannel,result);
+
+					return;
+
+				} else if (btnPressed === "←") {
+					currentCalcEntry = currentCalcEntry.toString().replace(/.$/,'');
+					if (currentCalcEntry.length===0) {
+						currentCalcEntry ='0'
+					}
+				} else if (btnPressed === "清") {//重新初始化
+					currentCalcEntry = '';
+					workingChannel = '0';
+					resetNumsInCells();
+					resetCellHighlight();
+					for (let i = 0; i < 5; i++) {
+						Cookies.set('cellVal'+workingChannel, '0',{ expires: 365 })
+					}
+				}
+
+				updateScreen(currentCalcEntry);
+			});
+
+			// alert("享受益智娱乐社交，远离熬夜伤身赌博");
+		});
+
+		updateChannel = function (channelNo, value) {
+			$("#"+"in"+channelNo).html(value);
+			$("#"+"out"+channelNo).html(value);
+
+			updateScreen(value); //更新计算器屏幕
+			clearExternalScreen();	//更新复制的计算器屏幕
+			Cookies.set('cellVal'+channelNo, value) //保存cookie
+
+		}
+		setNumChkColor = function (trueFalse) {
+			if (trueFalse) {
+				$(".red").css("background","coral")
+			}else {
+				$(".red").css("background","grey")
+			}
+		}
+		checkNumRange = function (trueFalse) {
+			if (trueFalse) {
+				$(".red").css("background","grey")
+			} else {
+				$(".red").css("background","coral")
+			}
+		}
+		updateScreen = function(displayValue) {
+			var result=displayValue.toString();
+			$("#calcIn5").html(result);
+			$("#calcOut5").html(result);
+		};
+		clearExternalScreen = function () {
+			$("#calcOut5").html('');
+		}
+
+		isNumber = function(value) {
+			return !isNaN(value);
+		}
+
+		isOperator = function(value) {
+			return value === 'x' || value === '*' || value === '+' || value === '-' || value === '-';
+		};
+
+		resetNumsInCells = function () {
+			$("div").text('');
+		}
+		resetCellHighlight = function (){
+			$("td").css("border","1px solid white"); //设置默认网格边框粗细
+		}
+		updateCellHighlight = function (){
+			resetCellHighlight();
+			$("#"+"tIn"+workingChannel).css("border","5px solid white"); //设置默认网格边框粗细
+			$("#"+"tOut"+workingChannel).css("border","5px solid white"); //设置默认网格边框粗细
+		}
+	</script>
+
+</head>
+<body>
+<table width=100% height=100% border=2>
+	<tbody>
+		<tr height="50%">
+			<!-----------------左上区域-------------->
+			<td width=50%>
+				<table width=100% height=100% border=1>
+
+					<!-----------------左上区域-奖------------->
+					<tr height="20%" ><td class="rotated_green" width="50%" align="center" id="tOut4">
+<!--						<span style="font-size:100%" >奖</span>-->
+						<div style="font-size: 100%" id="out4">004</div>
+					</td>
+						<!-----------------左上区域-黄------------->
+					<td  class="rotated_yellow" align="center" id="tOut3">
+<!--							<span style="font-size:100%" >黄</span>-->
+							<div style="font-size: 100%" id="out3">003</div>
+
+					</td></tr>
+
+					<!-----------------左上区域-醒------------->
+					<tr ><td colspan="2"   class="rotated_black" id="tOut2">
+						<span>醒</span>
+						<div align="center" class="rotated_size3" id="out2">002</div>
+					</td></tr>
+					<!-----------------左上-对外显示屏------------->
+					<tr height="20%" ><td colspan="2" class="rotated_grey" width="50%" align="center">
+						<div  id="calcOut5">005</div>
+					</td></tr>
+				</table>
+			</td>
+
+			<!-----------------右上区域-------------->
+			<td>
+				<table width=100% height=100% border=1>
+
+					<!-----------------右上-胡------------->
+					<tr ><td colspan="2"   class="rotated_black" id="tOut1">
+						<span>胡</span>
+						<div align="center" class="rotated_size4" id="out1">001</div>
+					</td></tr>
+
+				</table>
+			</td>
+<!--			<tr><td colspan="2"   class="rotated">xx</td></tr>-->
+
+		</tr><tr>
+
+			<!--------------左下区域----------------->
+			<td >
+				<table width=100% height=100% border=1>
+					<tr ><td colspan="2" height="50%" id="tIn1" >
+						<span style="font-size:300%">胡</span>
+						<div align="center" class="num_size3" id="in1">001</div>
+					</td></tr>
+					<tr height=25%>
+						<td rowspan="2" width="66%"  id="tIn2">
+							<span style="font-size:300%">醒</span>
+							<div align="center" class="num_size3" id="in2">002</div>
+						</td>
+						<td class="yellow" id="tIn3">
+<!--							<span style="font-size:100%" >黄&nbsp; &nbsp;</span>-->
+							<div style="font-size: 100%; text-align: center" id="in3">003</div>
+						</td></tr>
+					<tr height=25%> <td class="green" id="tIn4">
+<!--						<span style="font-size:100%">奖&nbsp; &nbsp;</span>-->
+						<div style="font-size: 100%; text-align: center"  id="in4">004</div>
+					</td></tr>
+				</table>
+			</td>
+
+
+			<!---------------右下区域---------------->
+			<td class="td"   align="center">
+				<!---------------计算器区屏幕---------------->
+				<div class="calcScreen" id="calcIn5">005</div>
+				<!---------------计算器按钮区---------------->
+				<button class="blue">7</button>
+				<button class="blue">8</button>
+				<button class="blue">9</button>
+				<button class="grey">←</button>
+				<br>
+				<button class="blue">4</button>
+				<button class="blue">5</button>
+				<button class="blue">6</button>
+				<button  class="green">-</button>
+				<br>
+				<button class="blue">1</button>
+				<button class="blue">2</button>
+				<button class="blue">3</button>
+				<button  class="green" >+</button>
+				<br>
+				<button class="grey">清</button>
+				<button class="blue">0</button>
+				<button  class="green">x</button>
+				<button class="red">=</button>
+				<br>
+
+			</td></tr>
+	</tbody>
+</table>
+</body>
+</html>
